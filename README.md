@@ -34,4 +34,7 @@ We can set the following paramater of NAND packet
 * performance:tErase, tProgram
 * Limitation time of the NAND: ??k
 
+# Reference
+[VSSIM: Virtual Machine based SSD Simulator](https://www.computer.org/csdl/proceedings/msst/2013/0217/00/06558443.pdf)
+
 
