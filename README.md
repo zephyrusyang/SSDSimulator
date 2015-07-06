@@ -1,29 +1,25 @@
 # SSDSimulator
 A Simulator for SSD development
 
-A SSD is design on the following hareware.
-This simulator provide a common hardware environment for SSD controler's development.
-This simulator will link the hareware I/F with gmock in order to test the fireware
-Interaction between host and device will be set by python script
+* This simulator will provide a simulate hardware environment for SSD Firmware's development.
+* Gmock will be used to link the sim-hareware I/F to make it easier to test the Firmware
+* Python Script will be used to perform SATA/NVMe base interaction with Firmware.
 
-# For the frontend
-NVMe Proccessor: Handle the NVMe protocol
-SATA/ATA/AHCI Proccessor: Handle the SATA/ATA Protocol
-PCIe Proccessor: Handle the PCIe protocol
-EMMc Proccessor: Handle the PCIe protocol
+# SSD Interface:
+* NVMe, SATA, PCIe, eMMC will be support
 
-# CPU
-CPU: We can set the core number of CPU
+# Common Hardwares:
+* CPU: the CPU number and cache size can be set
+* DRAM: the size of DRAM can be set
+* SRAM: the size of SRAM can be set
+* NVME Controler: handle the NVMe procotol
+* SATA Controler: handle the SATA procotol
+* PCIe Controler: handle the PCIe procotol
+* eMMC Controler: handle the eMMC procotol
+* Data Search Engine: A hardware engine to search host data that in the DRAM
+* ECC Engine
 
-# DRAM
-DRAM: We can set the size of DRAM 
-SRAM: We can set the size of SRAM
-Data Search Engine: A hardware engine to search host data that in the DRAM
-
-# ECC
-TBD
-
-# NAND
+# NAND chip:
 We can set the following paramater of NAND packet
 * bank number:
 * chancel number:
