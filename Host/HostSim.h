@@ -9,14 +9,13 @@
 
 class HostSim{
 public:
-  HostSim(void){};
-  ~HostSim(void){};
-
-  void SendNCQ(){};
-  void SendPIO(){};
-  void SendDMA(){};
-  void SendDownloadMircocode(){};
-  void SendSMART(){};
-}
+  HostSim();
+  ~HostSim();
+  void SendNCQ();
+  void SendPIO();
+  void SendDMA();
+  void SendDownloadMicrocode();
+  void SendSMART();
+};
 
 #endif
