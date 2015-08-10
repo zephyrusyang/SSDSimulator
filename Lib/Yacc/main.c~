@@ -1,0 +1,8 @@
+#include <stdio.h>
+
+int main(void){
+  printf("LINE = %d\n", __LINE__);
+  printf("FILE = %d\n", __FILE__);
+  printf("DATE = %d\n", __DATE__);
+  printf("TIME = %d\n", __TIME__);
+}

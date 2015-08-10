@@ -1,0 +1,5 @@
+#include <stdio>
+
+void main(void){
+  print("Hello World");
+}

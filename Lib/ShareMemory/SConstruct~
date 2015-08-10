@@ -1,0 +1,5 @@
+common = ["ShareMemoryLib.c"]
+simHostFiles = ["SimHost.c"] + common
+simDeviceFiles = ["SimDevice.c"] + common
+Program('SimHost', simHostFiles)
+Program('SimDevice', simDeviceFiles)

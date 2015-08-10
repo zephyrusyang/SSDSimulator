@@ -1,1 +1,1 @@
-Program('Firmware',Glob('*/*.c'));
+Program('Firmware.exe',Glob('*/*.c'));
