@@ -49,8 +49,9 @@ bool ShareMemory_CreateHandler(ShareMemoryType_e eShareMemoryType, bool bIsReadO
   if(bIsReadOnly){
     iShmId = shmget(tKey, SHMSIZE, 0);
   }else{
-    iShmId = shmget(tKey, SHMSIZE, IPC_CREAT|IPC_EXCL|0600);
+    iShmId = shmget(tKey, SHMSIZE, IPC_CREAT|0600);
     if(-1 == iShmId){
+        printf("can not create\n");
         iShmId = shmget(tKey, SHMSIZE, IPC_EXCL|0600);
     }
   }
@@ -63,13 +64,13 @@ bool ShareMemory_CreateHandler(ShareMemoryType_e eShareMemoryType, bool bIsReadO
   /* get share memory's Address  */
   /*******************************/
   if(bIsReadOnly){
-    pvShmAddr = shmat(iShmId, g_pucBuf, SHM_RDONLY);
+    pvShmAddr = shmat(iShmId, NULL, SHM_RDONLY);
   }else{
-    pvShmAddr = shmat(iShmId, g_pucBuf, SHM_RND|SHM_REMAP|0);
+    pvShmAddr = shmat(iShmId, NULL, 0);
   }
   if((char*)-1 == pvShmAddr){
-    perror("shmat()");
-    return false;
+      perror("shmat()");
+      return false;
   }
 
   /*******************************/
