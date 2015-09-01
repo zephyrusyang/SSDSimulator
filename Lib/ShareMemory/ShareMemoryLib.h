@@ -1,7 +1,7 @@
 #ifndef SHARE_MEMORY_COMMON_H
 #define SHARE_MEMORY_COMMON_H
 
-#include <stdio.h>
+
 #include <stdlib.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -10,6 +10,9 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <stdbool.h>
+#include "stdio.h"
+
+typedef unsigned int uint32_t;
 
 typedef enum tagShareMemoryType_e{
   SHM_TYPE_SRAM,

@@ -10,6 +10,8 @@
 
 #define SHMSIZE      (2048*5)
 
+unsigned char g_pucBuf[SHMSIZE];
+
 /* FUNCTION */
 bool ShareMemory_CreateHandler(ShareMemoryType_e eShareMemoryType, bool bIsReadOnly, ShareMemory_t* ptShareMemory){
   key_t    tKey = -1;
@@ -48,6 +50,9 @@ bool ShareMemory_CreateHandler(ShareMemoryType_e eShareMemoryType, bool bIsReadO
     iShmId = shmget(tKey, SHMSIZE, 0);
   }else{
     iShmId = shmget(tKey, SHMSIZE, IPC_CREAT|IPC_EXCL|0600);
+    if(-1 == iShmId){
+        iShmId = shmget(tKey, SHMSIZE, IPC_EXCL|0600);
+    }
   }
   if(-1 == iShmId){
     perror("shmget()");
@@ -58,9 +63,9 @@ bool ShareMemory_CreateHandler(ShareMemoryType_e eShareMemoryType, bool bIsReadO
   /* get share memory's Address  */
   /*******************************/
   if(bIsReadOnly){
-    pvShmAddr = shmat(iShmId, NULL, SHM_RDONLY);
+    pvShmAddr = shmat(iShmId, g_pucBuf, SHM_RDONLY);
   }else{
-    pvShmAddr = shmat(iShmId, NULL, 0);
+    pvShmAddr = shmat(iShmId, g_pucBuf, SHM_RND|SHM_REMAP|0);
   }
   if((char*)-1 == pvShmAddr){
     perror("shmat()");

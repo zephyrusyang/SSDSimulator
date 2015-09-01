@@ -15,6 +15,27 @@ int main(int argc, char* argv[]){
      (uint32_t)tShareMemoryHandler.pvShmAddr,
 	 tShareMemoryHandler.uiShmSize);
 
+  unsigned char* pucBuf = tShareMemoryHandler.pvShmAddr;
+
+  int i, j;
+  while(1){
+      if( 0 != pucBuf[0] && 0 != pucBuf[1]){
+          printf("round %d:\n", pucBuf[1]);
+          for(i = 0; i <= pucBuf[1]; i++){
+              printf("%d\n", pucBuf[i+2]);
+          }
+          printf("\n");
+          if(100 == pucBuf[1]){
+              break;
+          }else{
+              pucBuf[0] = 0;
+              pucBuf[1] = 0;
+          }
+      }else{
+          sleep(5);
+      }
+  }
+
   ShareMemory_RemoveHandler(&tShareMemoryHandler);
 
   return 0;

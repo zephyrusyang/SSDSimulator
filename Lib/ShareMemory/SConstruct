@@ -1,5 +1,8 @@
+env = Environment()
+env.Append(CCFLAGS='-g')
+
 common = ["ShareMemoryLib.c"]
 simHostFiles = ["SimHost.c"] + common
 simDeviceFiles = ["SimDevice.c"] + common
-Program('exe/SimHost.exe', simHostFiles)
-Program('exe/SimDevice.exe', simDeviceFiles)
+env.Program('exe/SimHost.exe', simHostFiles)
+env.Program('exe/SimDevice.exe', simDeviceFiles)
