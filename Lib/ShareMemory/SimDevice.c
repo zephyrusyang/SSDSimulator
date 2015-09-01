@@ -12,7 +12,7 @@ int main(int argc, char* argv[]){
   printf("Device => key:0x%x, shmid:0x%x, shmaddr:0x%x, shmsize=%d\n", 
 	 tShareMemoryHandler.tKey,
 	 tShareMemoryHandler.iShmId,
-	 tShareMemoryHandler.pvShmAddr,
+     (uint32_t)tShareMemoryHandler.pvShmAddr,
 	 tShareMemoryHandler.uiShmSize);
 
   ShareMemory_RemoveHandler(&tShareMemoryHandler);
