@@ -9,10 +9,10 @@ int main(int argc, char* argv[]){
   ShareMemory_t tShareMemoryHandler;
   ShareMemory_CreateHandler(SHM_TYPE_DRAM_ZONE1, false, &tShareMemoryHandler);
 
-  printf("Device => key:0x%x, shmid:0x%x, shmaddr:0x%x, shmsize=%d\n", 
+  printf("Device => key:0x%x, shmid:0x%x, shmaddr:0x%16x, shmsize=%d\n", 
 	 tShareMemoryHandler.tKey,
 	 tShareMemoryHandler.iShmId,
-     (uint32_t)tShareMemoryHandler.pvShmAddr,
+     tShareMemoryHandler.pvShmAddr,
 	 tShareMemoryHandler.uiShmSize);
 
   unsigned char* pucBuf = tShareMemoryHandler.pvShmAddr;
