@@ -1,10 +1,30 @@
 #include "ShareMemoryLib.h"
 
 /* MACRO */
-#define SHM_SRAM_FILE        "../ShareFile/SHM_SRAM"
+/*
+ * 実機では各CPUの共有メモリ領域が下記になる
+ * １．SRAM、
+ * ２．DRAM、
+ * ３．及び各CPUのグローバル変数を置くDCCM（SRAM）
+ * SRAM、DRAMのシミュレートは直接共有メモリでやればいいですが
+ * マルチプロセスでは.bssセグメントに置かれているグローバル変数のアドレスがかぶる可能性があるため、下記の対象が必要
+ * １．まず各CPUをシミュレートするプロセスの.bssセグメントを被らないようにする
+ * ２．指定した.bssセグメントのアドレスを共有メモリにマッピングする
+ */
+#define SHM_DCCM_CPU0_FILE   "../ShareFile/SHM_DCCM_CPU0"
+#define SHM_DCCM_CPU1_FILE   "../ShareFile/SHM_DCCM_CPU1"
+#define SHM_DCCM_CPU2_FILE   "../ShareFile/SHM_DCCM_CPU2"
+#define SHM_DCCM_CPU3_FILE   "../ShareFile/SHM_DCCM_CPU3"
+#define SHM_DCCM_CPU4_FILE   "../ShareFile/SHM_DCCM_CPU4"
+#define SHM_DCCM_CPU5_FILE   "../ShareFile/SHM_DCCM_CPU5"
+#define SHM_DCCM_CPU6_FILE   "../ShareFile/SHM_DCCM_CPU6"
+#define SHM_DCCM_CPU7_FILE   "../ShareFile/SHM_DCCM_CPU7"
+#define SHM_SRAM_AON_FILE    "../ShareFile/SHM_SRAM_AON"
+#define SHM_SRAM_POFF_FILE   "../ShareFile/SHM_SRAM_POFF"
 #define SHM_DRAM_ZONE1_FILE  "../ShareFile/SHM_DRAM_ZONE1"
 #define SHM_DRAM_ZONE2_FILE  "../ShareFile/SHM_DRAM_ZONE2"
 #define SHM_DRAM_ZONE3_FILE  "../ShareFile/SHM_DRAM_ZONE3"
+
 
 #define PROJ_CHAR    ((char)'x')
 
@@ -23,8 +43,8 @@ bool ShareMemory_CreateHandler(ShareMemoryType_e eShareMemoryType, bool bIsReadO
   /* generation of key           */
   /*******************************/
   switch(eShareMemoryType){
-    case SHM_TYPE_SRAM:
-      tKey = ftok(SHM_SRAM_FILE, PROJ_CHAR);
+    case SHM_TYPE_SRAM_AON:
+      tKey = ftok(SHM_SRAM_FILE_AON, PROJ_CHAR);
       break;
     case SHM_TYPE_DRAM_ZONE1:
       tKey = ftok(SHM_DRAM_ZONE1_FILE, PROJ_CHAR);
