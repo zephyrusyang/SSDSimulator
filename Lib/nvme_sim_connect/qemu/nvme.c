@@ -39,61 +39,134 @@
 #include "nvme.h"
 
 #define SOCKER_COM
+
 #if defined(SOCKER_COM)
 #include <sys/socket.h>
 #include <sys/types.h>
 
-int nvme_sockfd;
+typedef struct tagPcieCmd_t {
+    uint64_t offset;
+    uint64_t data;
+    uint64_t size;
+} PcieCmd_t;
+
+bool ssd_sim_connect(void);
+void ssd_sim_disconnect(void);
+void ssd_sim_send_pcie(uint64_t offset, uint64_t data, uint64_t size);
+void ssd_sim_send_nvme(uint32_t sqid, NvmeCmd* msg, BlockCompletionFunc *cb);
+void ssd_sim_nvme_response_handler(void *param);
+
+#define SSD_ADDR  ("127.0.0.1")
+#define SSD_PORT (5000)
+int ssd_sockfd = -1;
+pthread_t thread;
+bool is_connect_open = false;
+
+
+
+void ssd_sim_nvme_response_handler(void *param)
+{
+    uint32_t cqid;
+    NvmeCqe  cqe;
+    while(is_connect_open) {
+        int rcv_size;
+        rcv_size = recv(ssd_sockfd, &cqid, sizeof(cqid), MSG_WAITALL);
+        if (rcv_size == 0 || rcv_size < 0) {
+            break;
+        }
+
+        rcv_size = recv(ssd_sockfd, &cqe, sizeof(cqe), MSG_WAITALL);
+        if (rcv_size == 0 || rcv_size < 0) {
+            break;
+        }
+
+        /* handle msg */
+
+        printf("%s\n", __func__);
+        sleep(1);
+    }
+}
 
 bool ssd_sim_connect(void)
 {
-    struct sockaddr_in serv_addr;
     bool error = false;
 
-    nvme_sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    /* connect */
+    printf("[%s] connect to %s:%d \n", __func__, SSD_ADDR, SSD_PORT);
+    struct sockaddr_in serv_addr;
+    ssd_sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     memset(&serv_addr, '0', sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr);
-    serv_addr.sin_port = htons(5000);
-    
-    int ret = connect(nvme_sockfd, (const struct sockaddr *)&serv_addr, sizeof(serv_addr));
+    inet_pton(AF_INET, SSD_ADDR, &serv_addr.sin_addr);
+    serv_addr.sin_port = htons(SSD_PORT);
+
+    int ret = connect(ssd_sockfd,
+                      (const struct sockaddr *)&serv_addr,
+                      sizeof(serv_addr));
     if (ret != 0) {
         error = true;
+        return error;
     }
+
+    /* create reponse handler */
+    ret = pthread_create(&thread, NULL, ssd_sim_nvme_response_handler, NULL);
+    if (ret != 0) {
+        close(ssd_sockfd);
+        error = true;
+        return error;
+    }
+
+    is_connect_open = true;
 
     return error;
 }
 
-void ssd_sim_send_sync(void* msg, int size)
-{
-    send(nvme_sockfd, msg, size, 0);
-
-    /* wait for response */
-    
-}
-
-void ssd_sim_send_async(void* msg, int size, BlockCompletionFunc *cb)
-{
-    send(nvme_sockfd, msg, size, 0);
-
-    /* wait for response */
-    
-}
-
-void ssd_sim_send_str(char* str)
-{
-    static char sendBuff[100];
-
-    assert(strlen(str) < sizeof(sendBuff));
-    strcpy(sendBuff, str);
-    sendBuff[strlen(str)] = 0;
-    ssd_sim_send_sync(sendBuff, strlen(sendBuff));
-}
-
 void ssd_sim_disconnect(void)
 {
-    close(nvme_sockfd);
+    printf("%s, sockfd=%d\n", __func__, ssd_sockfd);
+    if (ssd_sockfd >= 0)
+        close(ssd_sockfd);
+
+    if (is_connect_open) {
+        is_connect_open = false;
+        pthread_join(thread, NULL);
+    }
+    
+}
+
+void ssd_sim_send_pcie(uint64_t offset, uint64_t data, uint64_t size)
+{
+    uint32_t sqid = 0x00010000;
+    PcieCmd_t cmd;
+    cmd.offset = offset;
+    cmd.data   = data;
+    cmd.size   = size;
+
+    printf("[%s] send size=%lu, offset=0x%x_%x, data=0x%x_%x, size=0x%x_%x\n",
+           __func__, sizeof(cmd),
+           (uint32_t)(offset >> 32), (uint32_t)offset,
+           (uint32_t)(data >> 32), (uint32_t)data,
+           (uint32_t)(size >> 32), (uint32_t)size
+        );
+
+    send(ssd_sockfd, &sqid, sizeof(sqid), 0);
+    send(ssd_sockfd, &cmd, sizeof(cmd), 0);
+}
+
+void ssd_sim_send_nvme(uint32_t sqid, NvmeCmd* msg, BlockCompletionFunc *cb)
+{
+    printf("[%s] send size=%lu, sqid=%d, opcode=0x%x\n",
+           __func__,
+           sizeof(*msg), sqid, msg->opcode);
+    send(ssd_sockfd, &sqid, sizeof(sqid), 0);
+    send(ssd_sockfd, msg, sizeof(*msg), 0);
+
+    if(cb) {
+        /* config callback by cqid and cid */
+    } else {
+        /* default callback */
+    }
 }
 
 
@@ -388,7 +461,7 @@ static uint16_t nvme_flush(NvmeCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
     req->aiocb = blk_aio_flush(n->conf.blk, nvme_rw_cb, req);
 
 #if defined(SOCKER_COM)
-    ssd_sim_send_async(cmd, sizeof(*cmd), nvme_rw_cb);
+    ssd_sim_send_nvme(req->sq->sqid, cmd, nvme_rw_cb);
 #endif
 
     return NVME_NO_COMPLETE;
@@ -419,7 +492,7 @@ static uint16_t nvme_write_zeros(NvmeCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
                                         BDRV_REQ_MAY_UNMAP, nvme_rw_cb, req);
 
 #if defined(SOCKER_COM)
-    ssd_sim_send_async(cmd, sizeof(*cmd), nvme_rw_cb);
+    ssd_sim_send_nvme(req->sq->sqid, cmd, nvme_rw_cb);
 #endif
 
     return NVME_NO_COMPLETE;
@@ -473,7 +546,7 @@ static uint16_t nvme_rw(NvmeCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
     }
 
 #if defined(SOCKER_COM)
-    ssd_sim_send_async(cmd, sizeof(*cmd), nvme_rw_cb);
+    ssd_sim_send_nvme(req->sq->sqid, cmd, nvme_rw_cb);
 #endif
 
     return NVME_NO_COMPLETE;
@@ -552,7 +625,7 @@ static uint16_t nvme_del_sq(NvmeCtrl *n, NvmeCmd *cmd)
 
     nvme_free_sq(sq, n);
 #if defined(SOCKER_COM)
-    ssd_sim_send_sync(cmd, sizeof(*cmd));
+    ssd_sim_send_nvme(0, cmd, NULL);
 #endif
 
     return NVME_SUCCESS;
@@ -598,7 +671,6 @@ static uint16_t nvme_create_sq(NvmeCtrl *n, NvmeCmd *cmd)
     uint64_t prp1 = le64_to_cpu(c->prp1);
 
     DEBUG_NVME_PRINT_FUNC();
-
     trace_nvme_create_sq(prp1, sqid, cqid, qsize, qflags);
 
     if (unlikely(!cqid || nvme_check_cqid(n, cqid))) {
@@ -625,7 +697,7 @@ static uint16_t nvme_create_sq(NvmeCtrl *n, NvmeCmd *cmd)
     nvme_init_sq(sq, n, prp1, sqid, cqid, qsize + 1);
 
 #if defined(SOCKER_COM)
-    ssd_sim_send_sync(cmd, sizeof(*cmd));
+    ssd_sim_send_nvme(0, cmd, NULL);
 #endif
 
     return NVME_SUCCESS;
@@ -662,7 +734,7 @@ static uint16_t nvme_del_cq(NvmeCtrl *n, NvmeCmd *cmd)
     nvme_free_cq(cq, n);
 
 #if defined(SOCKER_COM)
-    ssd_sim_send_sync(cmd, sizeof(*cmd));
+    ssd_sim_send_nvme(0, cmd, NULL);
 #endif
 
     return NVME_SUCCESS;
@@ -727,7 +799,7 @@ static uint16_t nvme_create_cq(NvmeCtrl *n, NvmeCmd *cmd)
         NVME_CQ_FLAGS_IEN(qflags));
 
 #if defined(SOCKER_COM)
-    ssd_sim_send_sync(cmd, sizeof(*cmd));
+    ssd_sim_send_nvme(0, cmd, NULL);
 #endif
 
     return NVME_SUCCESS;
@@ -745,7 +817,8 @@ static uint16_t nvme_identify_ctrl(NvmeCtrl *n, NvmeIdentify *c)
     trace_nvme_identify_ctrl();
 
 #if defined(SOCKER_COM)
-    ssd_sim_send_sync(c, sizeof(*c));
+    assert(sizeof(*c) == sizeof(NvmeCmd));
+    ssd_sim_send_nvme(0, (NvmeCmd*)c, NULL);
 #endif
 
     return nvme_dma_read_prp(n, (uint8_t *)&n->id_ctrl, sizeof(n->id_ctrl),
@@ -771,7 +844,8 @@ static uint16_t nvme_identify_ns(NvmeCtrl *n, NvmeIdentify *c)
     ns = &n->namespaces[nsid - 1];
 
 #if defined(SOCKER_COM)
-    ssd_sim_send_sync(c, sizeof(*c));
+    assert(sizeof(*c) == sizeof(NvmeCmd));
+    ssd_sim_send_nvme(0, (NvmeCmd*)c, NULL);
 #endif
 
     return nvme_dma_read_prp(n, (uint8_t *)&ns->id_ns, sizeof(ns->id_ns),
@@ -806,7 +880,8 @@ static uint16_t nvme_identify_nslist(NvmeCtrl *n, NvmeIdentify *c)
     g_free(list);
 
 #if defined(SOCKER_COM)
-    ssd_sim_send_sync(c, sizeof(*c));
+    assert(sizeof(*c) == sizeof(NvmeCmd));
+    ssd_sim_send_nvme(0, (NvmeCmd*)c, NULL);
 #endif
 
     return ret;
@@ -854,7 +929,7 @@ static uint16_t nvme_get_feature(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
     }
 
 #if defined(SOCKER_COM)
-    ssd_sim_send_sync(cmd, sizeof(*cmd));
+    ssd_sim_send_nvme(0, cmd, NULL);
 #endif
 
     req->cqe.result = result;
@@ -885,7 +960,7 @@ static uint16_t nvme_set_feature(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
     }
 
 #if defined(SOCKER_COM)
-    ssd_sim_send_sync(cmd, sizeof(*cmd));
+    ssd_sim_send_nvme(0, cmd, NULL);
 #endif
 
     return NVME_SUCCESS;
@@ -966,6 +1041,7 @@ static void nvme_clear_ctrl(NvmeCtrl *n)
 
     blk_flush(n->conf.blk);
     n->bar.cc = 0;
+
 }
 
 static int nvme_start_ctrl(NvmeCtrl *n)
@@ -1060,6 +1136,7 @@ static int nvme_start_ctrl(NvmeCtrl *n)
     nvme_init_sq(&n->admin_sq, n, n->bar.asq, 0, 0,
         NVME_AQA_ASQS(n->bar.aqa) + 1);
 
+
     return 0;
 }
 
@@ -1082,6 +1159,10 @@ static void nvme_write_bar(NvmeCtrl *n, hwaddr offset, uint64_t data,
                        offset, size);
         /* should be ignored, fall through for now */
     }
+
+#if defined(SOCKER_COM)
+    ssd_sim_send_pcie(offset, data, size);
+#endif
 
     switch (offset) {
     case 0xc:   /* INTMS */
@@ -1408,7 +1489,7 @@ static void nvme_realize(PCIDevice *pci_dev, Error **errp)
     bool error = ssd_sim_connect();
     if(error){
         error_setg(errp, "can not connect to ssd sim");
-        return;        
+        return;
     }
 #endif
 
@@ -1516,8 +1597,6 @@ static void nvme_exit(PCIDevice *pci_dev)
 #if defined(SOCKER_COM)
     ssd_sim_disconnect();
 #endif
-
-    DEBUG_NVME_PRINT_FUNC();
 
     nvme_clear_ctrl(n);
     g_free(n->namespaces);
