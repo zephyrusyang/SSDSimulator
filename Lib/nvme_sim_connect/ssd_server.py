@@ -108,14 +108,20 @@ class NvmeServer:
     def read_handler(self, sqid, chunk):
         read_cmd = cast(chunk, POINTER(NvmeRwCmd))[0]
         cqid = self.sq_list[sqid].cqid
-        print(" -- read_handler->{slba=0x%x, nlb=0x%x}" % (read_cmd.slba, read_cmd.nlb))
+        print(" -- read_handler->{cid=%d, slba=0x%x, nlb=0x%x}" % (read_cmd.cid, read_cmd.slba, read_cmd.nlb))
         self.response_cqe(cqid, sqid, read_cmd.cid, result=0, status=0)    
 
     def write_handler(self, sqid, chunk):
         write_cmd = cast(chunk, POINTER(NvmeRwCmd))[0]
         cqid = self.sq_list[sqid].cqid
-        print(" -- write_handler->{slba=0x%x, nlb=0x%x}" % (write_cmd.slba, write_cmd.nlb))
+        print(" -- write_handler->{cid=%d, slba=0x%x, nlb=0x%x}" % (write_cmd.cid, write_cmd.slba, write_cmd.nlb))
         self.response_cqe(cqid, sqid, write_cmd.cid, result=0, status=0)    
+
+    def flush_handler(self, sqid, chunk):
+        flush_cmd = cast(chunk, POINTER(NvmeCmd))[0]
+        cqid = self.sq_list[sqid].cqid
+        print(" -- flush_handler, cid=%d" % (flush_cmd.cid))
+        self.response_cqe(cqid, sqid, flush_cmd.cid, result=0, status=0)
 
     def create_sq_hander(self, sqid, chunk):
         create_q = cast(chunk, POINTER(NvmeCreateSq))[0]
@@ -152,7 +158,7 @@ class NvmeServer:
     }
 
     io_cmd_handler = {
-        0x00: dummy_handler_with_response,
+        0x00: flush_handler,
         0x01: write_handler,
         0x02: read_handler,
         0x04: dummy_handler_with_response,
