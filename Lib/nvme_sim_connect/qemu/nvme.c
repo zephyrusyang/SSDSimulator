@@ -61,7 +61,7 @@ bool ssd_sim_connect(void);
 void ssd_sim_disconnect(void);
 void ssd_sim_send_pcie(uint64_t offset, uint64_t data, uint64_t size);
 void ssd_sim_send_nvme(uint32_t sqid, NvmeCmd* msg, BlockCompletionFunc *cb, void *opaque);
-void ssd_sim_nvme_response_handler(void *param);
+void* ssd_sim_nvme_response_handler(void *param);
 
 void ssd_sim_sq_init(void);
 NvmeCallBackInfo_t* ssd_sim_sq_remove(uint16_t sqid, uint16_t cid);
@@ -91,6 +91,8 @@ NvmeCallBackInfo_t* ssd_sim_sq_remove(uint16_t sqid, uint16_t cid)
         if (cur->cid == cid) {
             if (prev)
                 prev->next = cur->next;
+            else if (cur->next)
+                sqList[sqid] = cur->next;
             else
                 sqList[sqid] = NULL;
             break;
@@ -186,7 +188,7 @@ void ssd_sim_send_pcie(uint64_t offset, uint64_t data, uint64_t size)
     send(ssd_sockfd, &cmd, sizeof(cmd), 0);
 }
 
-void ssd_sim_nvme_response_handler(void *param)
+void* ssd_sim_nvme_response_handler(void *param)
 {
     uint32_t cqid;
     NvmeCqe  cqe;
@@ -209,6 +211,8 @@ void ssd_sim_nvme_response_handler(void *param)
         cbInfo->cb(cbInfo->opaque, cqe.status);
         free(cbInfo);
     }
+
+    return NULL;
 }
 
 void ssd_sim_send_nvme(uint32_t sqid, NvmeCmd* msg, BlockCompletionFunc *cb, void *opaque)
@@ -534,12 +538,16 @@ static uint16_t nvme_write_zeros(NvmeCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
     NvmeRequest *req)
 {
     NvmeRwCmd *rw = (NvmeRwCmd *)cmd;
+#if !defined(SOCKER_COM)
     const uint8_t lba_index = NVME_ID_NS_FLBAS_INDEX(ns->id_ns.flbas);
     const uint8_t data_shift = ns->id_ns.lbaf[lba_index].ds;
+#endif
     uint64_t slba = le64_to_cpu(rw->slba);
     uint32_t nlb  = le16_to_cpu(rw->nlb) + 1;
+#if !defined(SOCKER_COM)
     uint64_t aio_slba = slba << (data_shift - BDRV_SECTOR_BITS);
     uint32_t aio_nlb = nlb << (data_shift - BDRV_SECTOR_BITS);
+#endif
 
     DEBUG_NVME_PRINT_FUNC();
 
@@ -574,7 +582,9 @@ static uint16_t nvme_rw(NvmeCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
     uint8_t lba_index  = NVME_ID_NS_FLBAS_INDEX(ns->id_ns.flbas);
     uint8_t data_shift = ns->id_ns.lbaf[lba_index].ds;
     uint64_t data_size = (uint64_t)nlb << data_shift;
+#if !defined(SOCKER_COM)
     uint64_t data_offset = slba << data_shift;
+#endif
     int is_write = rw->opcode == NVME_CMD_WRITE ? 1 : 0;
     enum BlockAcctType acct = is_write ? BLOCK_ACCT_WRITE : BLOCK_ACCT_READ;
 
